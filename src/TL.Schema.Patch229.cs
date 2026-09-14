@@ -150,4 +150,227 @@ namespace TL
 		/// <summary>Button text</summary>
 		public override string Text => text;
 	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	//  Inline-клавиатуры: тот же слой переработал и их (отдельная ветка типов).
+	//
+	//  Провод (tdlib/td, td/generate/scheme/telegram_api.tl):
+	//     replyInlineMarkup#b2b15770 flags:# force_reply:flags.5?true
+	//                            rows:Vector<KeyboardInlineButtonRow> = ReplyMarkup;
+	//     keyboardInlineButtonRow#19420af6 buttons:Vector<KeyboardInlineButton> = KeyboardInlineButtonRow;
+	//     keyboardInlineButton#11c1a322 flags:# style:flags.10?KeyboardButtonStyle
+	//                            text:string type:InlineButtonType = KeyboardInlineButton;
+	//     inlineButtonType*#... = InlineButtonType;
+	//     inlineQueryPeerType*#... = InlineQueryPeerType;
+	//
+	//  Важно: старый replyInlineMarkup#48A30254 остаётся в схеме — он приходит на
+	//  старые клавиатуры, уже лежащие на сервере. Поэтому новый вариант добавлен
+	//  ОТДЕЛЬНЫМ классом (ReplyInlineMarkupWithRows), а не правкой сгенерированного.
+	// ─────────────────────────────────────────────────────────────────────────
+
+	/// <summary>Тип inline-кнопки бота (слой 229). Базовый конструктор — <see cref="KeyboardInlineButtonWithType"/></summary>
+	public abstract partial class InlineButtonType : IObject { }
+
+	/// <summary>Обычная кнопка со ссылкой		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeUrl"/></para></summary>
+	[TLDef(0xECA4F8D4)]
+	public sealed partial class InlineButtonTypeUrl : InlineButtonType
+	{
+		/// <summary>URL</summary>
+		public string url;
+	}
+
+	/// <summary>Кнопка со ссылкой, требующей подтверждения авторизации		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeUrlAuth"/></para></summary>
+	[TLDef(0xBFD02DA2)]
+	public sealed partial class InlineButtonTypeUrlAuth : InlineButtonType
+	{
+		/// <summary>Extra bits of information, use <c>flags.HasFlag(...)</c> to test for those</summary>
+		public Flags flags;
+		/// <summary>New text of the button in forwarded messages</summary>
+		[IfFlag(0)] public string fwd_text;
+		/// <summary>URL</summary>
+		public string url;
+		/// <summary>Button id, to be passed back in the resulting service message</summary>
+		public int button_id;
+
+		[Flags] public enum Flags : uint
+		{
+			/// <summary>Field <see cref="fwd_text"/> has a value</summary>
+			has_fwd_text = 0x1,
+		}
+	}
+
+	/// <summary>Кнопка со ссылкой, требующей подтверждения авторизации (на отправку)		<para>See <a href="https://corefork.telegram.org/constructor/inputInlineButtonTypeUrlAuth"/></para></summary>
+	[TLDef(0x9961BCB4)]
+	public sealed partial class InputInlineButtonTypeUrlAuth : InlineButtonType
+	{
+		/// <summary>Extra bits of information, use <c>flags.HasFlag(...)</c> to test for those</summary>
+		public Flags flags;
+		/// <summary>New text of the button in forwarded messages</summary>
+		[IfFlag(1)] public string fwd_text;
+		/// <summary>URL</summary>
+		public string url;
+		/// <summary>Bot that will be used to handle the authorization</summary>
+		[IfFlag(2)] public InputUser bot;
+
+		// Внимание: request_write_access в TL объявлен как flags.0?true — у него НЕТ payload,
+		// поэтому он живёт только битом enum (bool-поле съело бы лишние 4 байта).
+		[Flags] public enum Flags : uint
+		{
+			/// <summary>Whether to request write access to the user account</summary>
+			request_write_access = 0x1,
+			/// <summary>Field <see cref="fwd_text"/> has a value</summary>
+			has_fwd_text = 0x2,
+			/// <summary>Field <see cref="bot"/> has a value</summary>
+			has_bot = 0x4,
+		}
+	}
+
+	/// <summary>Кнопка открытия веб-приложения		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeWebView"/></para></summary>
+	[TLDef(0x3BCAB5B4)]
+	public sealed partial class InlineButtonTypeWebView : InlineButtonType
+	{
+		/// <summary>URL of the web app</summary>
+		public string url;
+	}
+
+	/// <summary>Кнопка с callback-данными		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeCallback"/></para></summary>
+	[TLDef(0x2955BC38)]
+	public sealed partial class InlineButtonTypeCallback : InlineButtonType
+	{
+		/// <summary>Extra bits of information, use <c>flags.HasFlag(...)</c> to test for those</summary>
+		public Flags flags;
+		/// <summary>Callback data</summary>
+		public byte[] data;
+
+		[Flags] public enum Flags : uint
+		{
+			/// <summary>Whether the callback requires a password</summary>
+			requires_password = 0x1,
+		}
+	}
+
+	/// <summary>Кнопка запуска игры		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeGame"/></para></summary>
+	[TLDef(0x5CD3709D)]
+	public sealed partial class InlineButtonTypeGame : InlineButtonType
+	{
+	}
+
+	/// <summary>Кнопка покупки		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeBuy"/></para></summary>
+	[TLDef(0x48BAD7A5)]
+	public sealed partial class InlineButtonTypeBuy : InlineButtonType
+	{
+	}
+
+	/// <summary>Кнопка переключения в inline-режим		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeSwitchInline"/></para></summary>
+	[TLDef(0x93773FF5)]
+	public sealed partial class InlineButtonTypeSwitchInline : InlineButtonType
+	{
+		/// <summary>Extra bits of information, use <c>flags.HasFlag(...)</c> to test for those</summary>
+		public Flags flags;
+		/// <summary>Inline query</summary>
+		public string query;
+		/// <summary>Peer types the inline query can be sent to</summary>
+		[IfFlag(1)] public InlineQueryPeerType[] peer_types;
+
+		[Flags] public enum Flags : uint
+		{
+			/// <summary>Whether the query must be sent to the same peer</summary>
+			same_peer = 0x1,
+			/// <summary>Field <see cref="peer_types"/> has a value</summary>
+			has_peer_types = 0x2,
+		}
+	}
+
+	/// <summary>Кнопка открытия профиля пользователя		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeUserProfile"/></para></summary>
+	[TLDef(0x3FA33FCF)]
+	public sealed partial class InlineButtonTypeUserProfile : InlineButtonType
+	{
+		/// <summary>User id</summary>
+		public long user_id;
+	}
+
+	/// <summary>Кнопка открытия профиля пользователя (на отправку)		<para>See <a href="https://corefork.telegram.org/constructor/inputInlineButtonTypeUserProfile"/></para></summary>
+	[TLDef(0x53F3CE5A)]
+	public sealed partial class InputInlineButtonTypeUserProfile : InlineButtonType
+	{
+		/// <summary>User</summary>
+		public InputUser user_id;
+	}
+
+	/// <summary>Кнопка копирования текста		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeCopy"/></para></summary>
+	[TLDef(0xB41D3272)]
+	public sealed partial class InlineButtonTypeCopy : InlineButtonType
+	{
+		/// <summary>The text that will be copied to the clipboard</summary>
+		public string copy_text;
+	}
+
+	/// <summary>Неактивная кнопка		<para>See <a href="https://corefork.telegram.org/constructor/inlineButtonTypeDisabled"/></para></summary>
+	[TLDef(0xA438619D)]
+	public sealed partial class InlineButtonTypeDisabled : InlineButtonType
+	{
+	}
+
+	// InlineQueryPeerType намеренно НЕ переопределяется: в 4.4.8 это enum, значения
+	// которого в точности равны ctor-id новых вариантов (SameBotPM = 0x3081ED9D и т.д.),
+	// а все варианты на проводе без полей — значит enum разбирает их корректно.
+	// Дубли с теми же ctor-id ломают Roslyn-генератор (NullReferenceException).
+
+	/// <summary>Строка inline-клавиатуры		<para>See <a href="https://corefork.telegram.org/constructor/keyboardInlineButtonRow"/></para></summary>
+	[TLDef(0x19420AF6)]
+	public sealed partial class KeyboardInlineButtonRow : IObject
+	{
+		/// <summary>Inline keyboard buttons</summary>
+		public KeyboardInlineButton[] buttons;
+	}
+
+	/// <summary>Inline-кнопка бота		<para>See <a href="https://corefork.telegram.org/type/KeyboardInlineButton"/></para></summary>
+	public abstract partial class KeyboardInlineButton : IObject
+	{
+		/// <summary>Button style</summary>
+		public virtual KeyboardButtonStyle Style => default;
+		/// <summary>Button text</summary>
+		public virtual string Text => default;
+	}
+
+	/// <summary>Inline-кнопка бота (слой 229)		<para>See <a href="https://corefork.telegram.org/constructor/keyboardInlineButton"/></para></summary>
+	[TLDef(0x11C1A322)]
+	public partial class KeyboardInlineButtonWithType : KeyboardInlineButton
+	{
+		/// <summary>Extra bits of information, use <c>flags.HasFlag(...)</c> to test for those</summary>
+		public Flags flags;
+		/// <summary>Button style</summary>
+		[IfFlag(10)] public KeyboardButtonStyle style;
+		/// <summary>Button text</summary>
+		public string text;
+		/// <summary>Button type</summary>
+		public InlineButtonType type;
+
+		[Flags] public enum Flags : uint
+		{
+			/// <summary>Field <see cref="style"/> has a value</summary>
+			has_style = 0x400,
+		}
+
+		/// <summary>Button style</summary>
+		public override KeyboardButtonStyle Style => style;
+		/// <summary>Button text</summary>
+		public override string Text => text;
+	}
+
+	/// <summary>Inline-клавиатура (слой 229)		<para>See <a href="https://corefork.telegram.org/constructor/replyInlineMarkup"/></para></summary>
+	[TLDef(0xB2B15770)]
+	public sealed partial class ReplyInlineMarkupWithRows : ReplyMarkup
+	{
+		/// <summary>Extra bits of information, use <c>flags.HasFlag(...)</c> to test for those</summary>
+		public Flags flags;
+		/// <summary>Inline keyboard rows</summary>
+		public KeyboardInlineButtonRow[] rows;
+
+		[Flags] public enum Flags : uint
+		{
+			/// <summary>Whether the user must send a reply</summary>
+			force_reply = 0x20,
+		}
+	}
 }
