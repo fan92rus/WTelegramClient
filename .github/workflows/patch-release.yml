@@ -1,0 +1,49 @@
+name: Build patched package
+
+on:
+  push:
+    branches: [ patch/layer-229 ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Сборка всех целевых фреймворков: ловит ошибки генератора схемы на любом из них
+      - name: Build
+        run: dotnet build src/WTelegramClient.csproj -c Release --nologo
+
+      - name: Determine version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=4.4.8-patch229.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        run: dotnet pack src/WTelegramClient.csproj -c Release -f net8.0 -p:Version=${{ steps.ver.outputs.version }} -p:PackageReleaseNotes="layer 229 keyboardButton/ButtonType patch (see PATCHES.md)" -o dist --nologo
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WTelegramClient-${{ steps.ver.outputs.version }}
+          path: dist/*.nupkg
+
+      - name: Attach package to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.nupkg
+          body_path: PATCHES.md
