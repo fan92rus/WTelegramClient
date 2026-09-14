@@ -33,7 +33,7 @@ jobs:
           fi
 
       - name: Pack
-        run: dotnet pack src/WTelegramClient.csproj -c Release -f net8.0 -p:Version=${{ steps.ver.outputs.version }} -p:PackageReleaseNotes="layer 229 keyboardButton/ButtonType patch (see PATCHES.md)" -o dist --nologo
+        run: dotnet pack src/WTelegramClient.csproj -c Release -p:Version=${{ steps.ver.outputs.version }} -p:PackageReleaseNotes="layer 229 keyboardButton/ButtonType patch (see PATCHES.md)" -o dist --nologo
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
